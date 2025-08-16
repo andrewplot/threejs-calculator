@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Calculator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    #container {
+      width: 100%;
+      height: 100%;
+      display: block;
+      position: relative;
+    }
+    
+    canvas {
+      display: block;
+    }
+    
+    #ui-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      color: white;
+      font-weight: 300;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+    }
+    
+    #controls-hint {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+      color: white;
+      font-weight: 300;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 15px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+    }
+    
+    #footer-info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      color: white;
+      font-weight: 300;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 12px 15px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    #github-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(5px);
+    }
+    
+    #github-link:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    .github-icon {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #github-link:hover .github-icon {
+      transform: rotate(360deg) scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+
+  <div id="controls-hint">
+    Mouse: Rotate • Wheel: Zoom • Right-click: Pan
+  </div>
+
+  <div id="footer-info">
+    <span>© 2025 andrewplot </span>
+    <a href="https://github.com/andrewplot" target="_blank" id="github-link">
+      <svg class="github-icon" viewBox="0 0 24 24">
+        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+
+  <!-- Three.js core -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    // ======= BASIC SETUP =======
+    const container = document.getElementById('container');
+    const scene = new THREE.Scene();
+    
+    // gradient background
+    const bgTexture = new THREE.CanvasTexture(createGradientCanvas());
+    scene.background = bgTexture;
+
+    function createGradientCanvas() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 2;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 2);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(0.5, '#16213e');
+      gradient.addColorStop(1, '#0f3460');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 2, 2);
+      return canvas;
+    }
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 8, 12);
+
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    // orbit controls
+    let isDragging = false;
+    let isRightDrag = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let spherical = new THREE.Spherical(12, Math.PI * 0.3, 0);
+    let target = new THREE.Vector3(0, 1, 0);
+    let panOffset = new THREE.Vector3();
+
+    function updateCamera() {
+      const position = new THREE.Vector3();
+      position.setFromSpherical(spherical);
+      position.add(target);
+      position.add(panOffset);
+      camera.position.copy(position);
+      camera.lookAt(target.clone().add(panOffset));
+    }
+
+    renderer.domElement.addEventListener('mousedown', (event) => {
+      isDragging = true;
+      isRightDrag = event.button === 2;
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+      renderer.domElement.style.cursor = isRightDrag ? 'grabbing' : 'grabbing';
+    });
+
+    renderer.domElement.addEventListener('mousemove', (event) => {
+      if (!isDragging) return;
+
+      const deltaMove = {
+        x: event.clientX - previousMousePosition.x,
+        y: event.clientY - previousMousePosition.y
+      };
+
+      if (isRightDrag) {
+        // Pan
+        const distance = spherical.radius;
+        const factor = distance * 0.001;
+        const panX = deltaMove.x * factor;
+        const panY = deltaMove.y * factor;
+        
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3();
+        camera.getWorldDirection(new THREE.Vector3());
+        right.setFromMatrixColumn(camera.matrix, 0);
+        up.setFromMatrixColumn(camera.matrix, 1);
+        
+        panOffset.add(right.multiplyScalar(-panX));
+        panOffset.add(up.multiplyScalar(panY));
+      } else {
+        // Orbit
+        spherical.theta -= deltaMove.x * 0.01;
+        spherical.phi += deltaMove.y * 0.01;
+        spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+      }
+
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+      updateCamera();
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => {
+      isDragging = false;
+      isRightDrag = false;
+      renderer.domElement.style.cursor = 'grab';
+    });
+
+    renderer.domElement.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      spherical.radius += event.deltaY * 0.01;
+      spherical.radius = Math.max(6, Math.min(20, spherical.radius));
+      updateCamera();
+    });
+
+    renderer.domElement.addEventListener('contextmenu', (event) => {
+      event.preventDefault(); // Prevent right-click menu
+    });
+
+    // Initialize camera position
+    updateCamera();
+
+    // lighting setup
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+    scene.add(ambientLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    mainLight.position.set(10, 15, 10);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.near = 0.5;
+    mainLight.shadow.camera.far = 50;
+    mainLight.shadow.camera.left = -10;
+    mainLight.shadow.camera.right = 10;
+    mainLight.shadow.camera.top = 10;
+    mainLight.shadow.camera.bottom = -10;
+    scene.add(mainLight);
+
+    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    fillLight.position.set(-5, 5, -5);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xff8844, 0.2);
+    rimLight.position.set(0, -5, 10);
+    scene.add(rimLight);
+
+    // CALCULATOR BASE 
+    const baseGeometry = new THREE.BoxGeometry(10, 0.3, 10); // Increased from 6x6 to 10x10
+    const baseMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x2c3e50,
+      metalness: 0.1,
+      roughness: 0.2,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.1
+    });
+    const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+    baseMesh.position.y = -1.5;
+    baseMesh.receiveShadow = true;
+    scene.add(baseMesh);
+
+    // DISPLAY 
+    const displayWidth = 1024;
+    const displayHeight = 256;
+    const displayCanvas = document.createElement('canvas');
+    displayCanvas.width = displayWidth;
+    displayCanvas.height = displayHeight;
+    const displayCtx = displayCanvas.getContext('2d');
+
+    function drawDisplay(text) {
+      // dark display background
+      const gradient = displayCtx.createLinearGradient(0, 0, 0, displayHeight);
+      gradient.addColorStop(0, '#1a1a1a');
+      gradient.addColorStop(1, '#0d0d0d');
+      displayCtx.fillStyle = gradient;
+      displayCtx.fillRect(0, 0, displayWidth, displayHeight);
+      
+      // Subtle border
+      displayCtx.strokeStyle = '#333';
+      displayCtx.lineWidth = 4;
+      displayCtx.strokeRect(2, 2, displayWidth-4, displayHeight-4);
+      
+      // font rendering
+      displayCtx.font = 'bold 72px Inter, sans-serif';
+      displayCtx.fillStyle = '#00ff88';
+      displayCtx.textAlign = 'right';
+      displayCtx.textBaseline = 'middle';
+      displayCtx.shadowColor = '#00ff88';
+      displayCtx.shadowBlur = 10;
+      displayCtx.fillText(text, displayWidth - 40, displayHeight / 2);
+      displayCtx.shadowBlur = 0;
+      
+      displayTexture.needsUpdate = true;
+    }
+
+    const displayTexture = new THREE.CanvasTexture(displayCanvas);
+    displayTexture.minFilter = THREE.LinearFilter;
+    displayTexture.magFilter = THREE.LinearFilter;
+    
+    const displayMaterial = new THREE.MeshPhysicalMaterial({ 
+      map: displayTexture,
+      emissive: 0x001122,
+      emissiveIntensity: 0.2,
+      roughness: 0.1,
+      metalness: 0.0
+    });
+    
+    const displayGeometry = new THREE.PlaneGeometry(5, 1.2);
+    const displayMesh = new THREE.Mesh(displayGeometry, displayMaterial);
+    displayMesh.position.set(0, 5.0, 0.01); // Moved higher from 4.5 to 5.0
+    displayMesh.castShadow = true;
+    scene.add(displayMesh);
+
+    // Display frame
+    const frameGeometry = new THREE.BoxGeometry(5.2, 1.4, 0.1);
+    const frameMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x34495e,
+      metalness: 0.8,
+      roughness: 0.2
+    });
+    const frameMesh = new THREE.Mesh(frameGeometry, frameMaterial);
+    frameMesh.position.set(0, 5.0, -0.05); // Moved higher from 4.5 to 5.0
+    frameMesh.castShadow = true;
+    scene.add(frameMesh);
+
+    let currentInput = '';
+    drawDisplay('0');
+
+    // BUTTONS 
+    const buttons = [
+      ['C', '±', '%', '÷'],
+      ['7', '8', '9', '×'],
+      ['4', '5', '6', '−'],
+      ['1', '2', '3', '+'],
+      ['0', '.', '=', '=']
+    ];
+
+    const operatorMap = {
+      '÷': '/',
+      '×': '*',
+      '−': '-'
+    };
+
+    const buttonMeshes = [];
+    const buttonGroup = new THREE.Group();
+
+    function makeButtonTexture(label, isOperator = false, isSpecial = false) {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      // Button background based on type
+      let bgColor, textColor;
+      if (isSpecial) {
+        bgColor = ['#ff6b6b', '#ff5252'];
+        textColor = '#ffffff';
+      } else if (isOperator) {
+        bgColor = ['#4ecdc4', '#26a69a'];
+        textColor = '#ffffff';
+      } else {
+        bgColor = ['#f8f9fa', '#e9ecef'];
+        textColor = '#2c3e50';
+      }
+      
+      // Gradient background
+      const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+      gradient.addColorStop(0, bgColor[0]);
+      gradient.addColorStop(1, bgColor[1]);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+      
+      // Subtle border
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, size-4, size-4);
+      
+      // Text styling
+      ctx.font = `bold ${label.length > 1 ? '80' : '100'}px Inter, sans-serif`;
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(label, size / 2, size / 2);
+      
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    // Create button meshes with materials
+    for (let row = 0; row < buttons.length; row++) {
+      for (let col = 0; col < buttons[row].length; col++) {
+        const label = buttons[row][col];
+        const isOperator = ['÷', '×', '−', '+', '='].includes(label);
+        const isSpecial = ['C', '±', '%'].includes(label);
+        
+        const geometry = new THREE.BoxGeometry(0.9, 0.9, 0.15);
+        const material = new THREE.MeshPhysicalMaterial({
+          map: makeButtonTexture(label, isOperator, isSpecial),
+          roughness: 0.1,
+          metalness: 0.0,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.1
+        });
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.x = (col - 1.5) * 1.1;
+        mesh.position.y = 3.6 - row * 1.1; // Moved up from 3.3 to 3.6
+        mesh.position.z = 0.1;
+        mesh.userData = { value: label, originalY: mesh.position.y };
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        
+        buttonGroup.add(mesh);
+        buttonMeshes.push(mesh);
+      }
+    }
+    scene.add(buttonGroup);
+
+    // CALCULATOR LOGIC 
+    function isOperator(ch) {
+      return ['+', '-', '*', '/', '×', '÷', '−'].includes(ch);
+    }
+
+    function handleButtonPress(val) {
+      // animated button press
+      const clickedButton = buttonMeshes.find(btn => btn.userData.value === val);
+      if (clickedButton) {
+        clickedButton.position.z = 0.05;
+        setTimeout(() => {
+          clickedButton.position.z = 0.1;
+        }, 100);
+      }
+
+      if (val === '=') {
+        try {
+          if (isOperator(currentInput.slice(-1))) return;
+          let expression = currentInput
+            .replace(/×/g, '*')
+            .replace(/÷/g, '/')
+            .replace(/−/g, '-');
+          const result = eval(expression);
+          currentInput = String(result);
+        } catch {
+          currentInput = 'Error';
+          setTimeout(() => {
+            currentInput = '';
+            drawDisplay('0');
+          }, 1500);
+        }
+      } else if (val === 'C') {
+        currentInput = '';
+      } else if (val === '±') {
+        if (currentInput && currentInput !== '0') {
+          if (currentInput.startsWith('-')) {
+            currentInput = currentInput.slice(1);
+          } else {
+            currentInput = '-' + currentInput;
+          }
+        }
+      } else if (val === '%') {
+        if (currentInput && !isOperator(currentInput.slice(-1))) {
+          currentInput = String(parseFloat(currentInput) / 100);
+        }
+      } else {
+        const mappedVal = operatorMap[val] || val;
+        const lastChar = currentInput.slice(-1);
+        
+        if (val === '.') {
+          const parts = currentInput.split(/[\+\-\*\/]/);
+          const lastNum = parts[parts.length - 1];
+          if (lastNum.includes('.')) return;
+          if (lastNum === '') currentInput += '0';
+          currentInput += '.';
+        } else if (isOperator(val)) {
+          if (currentInput === '' && mappedVal !== '-') return;
+          if (isOperator(lastChar)) {
+            currentInput = currentInput.slice(0, -1) + mappedVal;
+          } else {
+            currentInput += mappedVal;
+          }
+        } else {
+          if (currentInput === '0' || currentInput === 'Error') {
+            currentInput = val;
+          } else {
+            currentInput += val;
+          }
+        }
+      }
+      
+      drawDisplay(currentInput === '' ? '0' : currentInput);
+    }
+
+    // INTERACTION 
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoveredButton = null;
+
+    function onPointerMove(event) {      
+      const bounds = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+      mouse.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(buttonMeshes, false);
+      
+      // Reset previous hover state
+      if (hoveredButton) {
+        hoveredButton.scale.setScalar(1);
+        hoveredButton = null;
+        if (!isDragging) renderer.domElement.style.cursor = 'grab';
+      }
+      
+      // Set new hover state (only if not dragging)
+      if (intersects.length > 0 && !isDragging) {
+        hoveredButton = intersects[0].object;
+        hoveredButton.scale.setScalar(1.05);
+        renderer.domElement.style.cursor = 'pointer';
+      }
+    }
+
+    function onPointerDown(event) {
+      if (event.button !== 0) return; // Only handle left clicks for buttons
+      
+      const bounds = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+      mouse.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(buttonMeshes, false);
+      
+      if (intersects.length > 0) {
+        // Prevent camera movement during button click
+        event.stopPropagation();
+        
+        const clicked = intersects[0].object;
+        const val = clicked.userData.value;
+        handleButtonPress(val);
+      }
+    }
+
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+
+    // Set initial cursor
+    renderer.domElement.style.cursor = 'grab';
+
+    // ======= WINDOW RESIZE =======
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ======= ANIMATION LOOP =======
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Subtle floating animation for the calculator
+      const time = Date.now() * 0.0005;
+      buttonGroup.position.y = Math.sin(time * 0.5) * 0.02;
+      displayMesh.position.y = 5.0 + Math.sin(time * 0.5) * 0.02;
+      frameMesh.position.y = 5.0 + Math.sin(time * 0.5) * 0.02;
+      
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
