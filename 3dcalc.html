@@ -258,6 +258,20 @@
     mainLight.shadow.camera.bottom = -10;
     scene.add(mainLight);
 
+    //sun obj
+    const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffdd88,
+      emissive: 0xffdd88,
+      emissiveIntensity: 1,
+    });
+    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+
+    //matching sun pos w/ mainLight
+    sunMesh.position.copy(mainLight.position).normalize().multiplyScalar(50); 
+    scene.add(sunMesh);
+
+
     const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
     fillLight.position.set(-5, 5, -5);
     scene.add(fillLight);
